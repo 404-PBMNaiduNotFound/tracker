@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-B-hcVAMW.js";import{i as t,n,t as r}from"./tooltip-bpWYW_Ft.js";var i=e();function a({hint:e,children:a}){return(0,i.jsxs)(r,{children:[(0,i.jsx)(t,{asChild:!0,children:(0,i.jsx)(`span`,{className:`inline-flex`,children:a})}),(0,i.jsx)(n,{className:`max-w-56 text-center`,children:e})]})}export{a as t};

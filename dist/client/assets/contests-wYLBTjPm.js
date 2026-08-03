@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-B-hcVAMW.js";import{t}from"./ContestsSection-Cxtx7x0W.js";var n=e();function r(){return(0,n.jsxs)(n.Fragment,{children:[(0,n.jsx)(`h1`,{className:`mb-6 text-2xl font-bold tracking-tight`,children:`Contests`}),(0,n.jsx)(t,{})]})}export{r as component};
