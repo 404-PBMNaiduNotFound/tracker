@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { SECTIONS } from "@/lib/a2z-data";
 import { EXTRA_PROBLEMS, type Sheet } from "@/lib/extra-problems-data";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -343,14 +343,8 @@ function ProblemsPage() {
   const { completed, submissions, toggle, loading } = useProblemCompletions();
 
   // Read search params from TanStack Router
-  const paramPage = search.page ?? 1;
-  const paramStatus = search.status ?? "Incomplete";
-  const paramPlat = search.platform ?? "All";
-  const paramDiff = search.difficulty ?? "All";
-  const paramTopic = search.topic ?? "All";
-  const paramSheet = search.sheet ?? "All";
-  const paramSort = search.sort ?? "Default Order";
   const paramQuery = search.q ?? "";
+  const paramStatus = search.status ?? (paramQuery ? "All" : "Incomplete");
 
   const [pageSize, setPageSize] = useState<number>(10);
   const [initialJumpDone, setInitialJumpDone] = useState(false);

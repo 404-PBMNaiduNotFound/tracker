@@ -61,8 +61,12 @@ async function fetchCodeChef(): Promise<Contest[]> {
           url: `https://www.codechef.com/${c.contest_code}`,
         };
       });
-  } catch (e) {
-    console.error("CodeChef fetch error:", e);
+  } catch (e: any) {
+    if (e?.name === "TimeoutError" || e?.code === 23) {
+      console.warn("CodeChef API timed out (8s limit reached), skipping CodeChef contests fetch.");
+    } else {
+      console.warn("CodeChef fetch warning:", e?.message ?? e);
+    }
     return [];
   }
 }
