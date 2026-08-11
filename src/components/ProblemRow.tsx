@@ -24,14 +24,10 @@ function youtubeSearchUrl(problemName: string) {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
+
 function chatGptProblemUrl(problemName: string) {
-  const prompt = `Explain the problem "${problemName}" in detail. Cover:
-1. Problem intuition and what it's asking
-2. Brute force approach with time and space complexity
-3. Better/optimized approach with explanation
-4. Optimal solution with step-by-step walkthrough, time complexity, and space complexity
-5. Key patterns and tips to remember`;
-  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+  return getChatGPTAiPromptUrl(problemName);
 }
 import {
   Tooltip,

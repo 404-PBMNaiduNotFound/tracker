@@ -76,6 +76,7 @@ export function DayDetail({
     borrowFromNext,
     deleteDay,
     deleteProblem,
+    skipTopic,
   } = usePlan();
 
   const [newDate, setNewDate] = useState(() => addDays(day.date, 1));
@@ -272,6 +273,33 @@ export function DayDetail({
               )}
             </div>
           )}
+
+          {/* Restore button — shown for skipped or postponed days */}
+          {(day.skipped || status === "postponed") && !locked && (
+            <HoverHint
+              hint={
+                day.skipped
+                  ? "Restore this day — un-skips it and returns it to your active schedule"
+                  : "Restore this day — resets postponed status back to pending"
+              }
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 text-[11px] px-2.5 rounded-lg font-semibold shrink-0 whitespace-nowrap border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-1"
+                onClick={async () => {
+                  if (day.skipped) {
+                    await skipTopic(day.dayNumber, false);
+                  } else {
+                    await updateDay(day.dayNumber, (d) => ({ ...d, status: "pending" as const }));
+                  }
+                }}
+              >
+                <RotateCcw className="size-3" />
+                <span>Restore Day</span>
+              </Button>
+            </HoverHint>
+          )}
         </div>
 
         {/* Topic Title & Subtopics Row */}
@@ -423,6 +451,7 @@ export function DayDetail({
             }
           />
         </div>
+
       </div>
     </article>
   );

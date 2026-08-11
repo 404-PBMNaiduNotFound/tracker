@@ -70,56 +70,56 @@ const PLATFORMS: {
   color: string;
   bgColor: string;
 }[] = [
-  {
-    key: "leetcode",
-    label: "LeetCode",
-    placeholder: "https://leetcode.com/yourname",
-    color: "#FFA116",
-    bgColor: "rgba(255,161,22,0.12)",
-  },
-  {
-    key: "codeforces",
-    label: "Codeforces",
-    placeholder: "https://codeforces.com/profile/yourname",
-    color: "#1F8ACB",
-    bgColor: "rgba(31,138,203,0.12)",
-  },
-  {
-    key: "codechef",
-    label: "CodeChef",
-    placeholder: "https://www.codechef.com/users/yourname",
-    color: "#5B4638",
-    bgColor: "rgba(91,70,56,0.12)",
-  },
-  {
-    key: "atcoder",
-    label: "AtCoder",
-    placeholder: "https://atcoder.jp/users/yourname",
-    color: "#8BC4E8",
-    bgColor: "rgba(139,196,232,0.12)",
-  },
-  {
-    key: "hackerrank",
-    label: "HackerRank",
-    placeholder: "https://www.hackerrank.com/profile/yourname",
-    color: "#00EA64",
-    bgColor: "rgba(0,234,100,0.12)",
-  },
-  {
-    key: "gfg",
-    label: "GeeksforGeeks",
-    placeholder: "https://www.geeksforgeeks.org/user/yourname",
-    color: "#2F8D46",
-    bgColor: "rgba(47,141,70,0.12)",
-  },
-  {
-    key: "github",
-    label: "GitHub",
-    placeholder: "https://github.com/yourname",
-    color: "#6E7681",
-    bgColor: "rgba(110,118,129,0.12)",
-  },
-];
+    {
+      key: "leetcode",
+      label: "LeetCode",
+      placeholder: "https://leetcode.com/yourname",
+      color: "#FFA116",
+      bgColor: "rgba(255,161,22,0.12)",
+    },
+    {
+      key: "codeforces",
+      label: "Codeforces",
+      placeholder: "https://codeforces.com/profile/yourname",
+      color: "#1F8ACB",
+      bgColor: "rgba(31,138,203,0.12)",
+    },
+    {
+      key: "codechef",
+      label: "CodeChef",
+      placeholder: "https://www.codechef.com/users/yourname",
+      color: "#5B4638",
+      bgColor: "rgba(91,70,56,0.12)",
+    },
+    {
+      key: "atcoder",
+      label: "AtCoder",
+      placeholder: "https://atcoder.jp/users/yourname",
+      color: "#8BC4E8",
+      bgColor: "rgba(139,196,232,0.12)",
+    },
+    {
+      key: "hackerrank",
+      label: "HackerRank",
+      placeholder: "https://www.hackerrank.com/profile/yourname",
+      color: "#00EA64",
+      bgColor: "rgba(0,234,100,0.12)",
+    },
+    {
+      key: "gfg",
+      label: "GeeksforGeeks",
+      placeholder: "https://www.geeksforgeeks.org/user/yourname",
+      color: "#2F8D46",
+      bgColor: "rgba(47,141,70,0.12)",
+    },
+    {
+      key: "github",
+      label: "GitHub",
+      placeholder: "https://github.com/yourname",
+      color: "#6E7681",
+      bgColor: "rgba(110,118,129,0.12)",
+    },
+  ];
 
 async function compressImageToDataUrl(file: File, maxPx = 128, quality = 0.5): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -393,7 +393,7 @@ export function MergedTodayProfile() {
           localStorage.setItem("local_avatar_url", dataUrl);
         }
         if (user) {
-          await saveAvatarBase64(user.uid, dataUrl).catch(() => {});
+          await saveAvatarBase64(user.uid, dataUrl).catch(() => { });
         }
         toast.success("Profile picture updated!");
       } catch (err) {
@@ -419,7 +419,7 @@ export function MergedTodayProfile() {
           localStorage.setItem("local_banner_url", dataUrl);
         }
         if (user) {
-          await saveBannerBase64(user.uid, dataUrl).catch(() => {});
+          await saveBannerBase64(user.uid, dataUrl).catch(() => { });
         }
         toast.success("Profile banner updated!");
       } catch (err) {
@@ -522,8 +522,8 @@ export function MergedTodayProfile() {
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
         {/* Left Side (2/3 width on desktop): 2 Stacked Rows (Motivation Card + Profile Overview Card) */}
         <div className="lg:col-span-2 flex flex-col justify-between gap-4">
-          {/* Row 1: Motivational Callout & Daily Quote */}
-          <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-purple-500/10 to-emerald-500/10 p-4 sm:p-5 backdrop-blur-md shadow-xl flex-1 flex flex-col justify-between space-y-3">
+          {/* Row 1: Motivational Callout & Daily Quote — compact height */}
+          <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-purple-500/10 to-emerald-500/10 p-3 sm:p-4 backdrop-blur-md shadow-xl shrink-0 flex flex-col justify-between space-y-2">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 {inactivityInfo.isLongAbsence ? (
@@ -577,12 +577,12 @@ export function MergedTodayProfile() {
             </div>
           </div>
 
-          {/* Row 2: User Profile Overview Card (Banner Backdrop & Overlapping Avatar) */}
-          <div className="rounded-3xl border border-white/15 bg-card/80 backdrop-blur-xl shadow-xl flex-1 relative overflow-hidden flex flex-col justify-between">
+          {/* Row 2: User Profile Overview Card (Banner Backdrop & Overlapping Avatar) — larger height */}
+          <div className="rounded-3xl border border-white/15 bg-card/80 backdrop-blur-xl shadow-xl flex-1 relative overflow-hidden flex flex-col justify-between min-h-[220px] sm:min-h-[260px]">
             {/* Cover Banner Backdrop */}
             <div
               onClick={() => bannerInputRef.current?.click()}
-              className="h-28 sm:h-36 w-full bg-gradient-to-r from-primary/30 via-purple-600/20 to-emerald-500/20 relative overflow-hidden rounded-t-3xl border-b border-white/10 cursor-pointer group"
+              className="h-36 sm:h-44 w-full bg-gradient-to-r from-primary/30 via-purple-600/20 to-emerald-500/20 relative overflow-hidden rounded-t-3xl border-b border-white/10 cursor-pointer group"
               title="Click to change Cover Banner"
             >
               {bannerURL ? (
@@ -599,19 +599,19 @@ export function MergedTodayProfile() {
             {/* Profile Avatar & Info Row (Half Overlapping Banner) */}
             <div className="p-4 sm:p-5 pt-0 relative flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                {/* Photo Avatar (Half section overlaps banner) */}
+                {/* Photo Avatar — half overlaps banner */}
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="-mt-8 sm:-mt-10 ml-1 flex size-16 sm:size-20 shrink-0 overflow-hidden rounded-full border-4 border-card bg-card shadow-2xl items-center justify-center z-10 cursor-pointer group relative"
+                  className="-mt-12 sm:-mt-14 ml-2 flex size-24 sm:size-28 shrink-0 overflow-hidden rounded-full border-[5px] border-card bg-card shadow-2xl items-center justify-center z-10 cursor-pointer group relative"
                   title="Click to change Profile Photo"
                 >
                   {photoURL ? (
                     <img src={photoURL} alt="avatar" className="size-full object-cover" />
                   ) : (
-                    <span className="text-xl font-extrabold text-primary">{initials}</span>
+                    <span className="text-3xl font-extrabold text-primary">{initials}</span>
                   )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                    <Camera className="size-4" />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white rounded-full">
+                    <Camera className="size-5" />
                   </div>
                 </div>
 
@@ -1055,7 +1055,7 @@ export function MergedTodayProfile() {
         onOpenChange={(open) => !open && setSelectedProblemForModal(null)}
         problemName={selectedProblemForModal ?? ""}
         existingSubmission={selectedProblemForModal ? submissions[selectedProblemForModal] : undefined}
-        onSave={async () => {}}
+        onSave={async () => { }}
         readOnly={true}
       />
     </div>

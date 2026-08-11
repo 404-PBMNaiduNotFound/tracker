@@ -26,6 +26,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
 
 interface GlobalSearchModalProps {
   open: boolean;
@@ -318,10 +319,20 @@ export function GlobalSearchModal({ open, onOpenChange, onOpenColorPanel }: Glob
                     <div className="flex items-center gap-1.5 shrink-0">
                       <button
                         onClick={() => handleSelectProblem(p.name)}
-                        className="rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary px-3 py-1 text-[11px] font-bold transition-colors"
+                        className="rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/30 text-primary px-2.5 py-1 text-[11px] font-bold transition-colors"
                       >
                         View & Highlight
                       </button>
+                      <a
+                        href={getChatGPTAiPromptUrl(p.name)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 text-[11px] font-bold transition-colors flex items-center gap-1"
+                        title="Solve with Interactive ChatGPT DSA AI Tutor"
+                      >
+                        <Sparkles className="size-3 text-emerald-400" />
+                        <span>Solve</span>
+                      </a>
                       {p.link && (
                         <a
                           href={p.link}

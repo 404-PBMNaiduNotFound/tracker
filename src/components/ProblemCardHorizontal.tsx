@@ -58,12 +58,10 @@ function youtubeSearchUrl(problemName: string) {
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
+import { getChatGPTAiPromptUrl } from "@/lib/aiTutorPrompt";
+
 function chatGptProblemUrl(problemName: string) {
-  const prompt = `Explain the problem "${problemName}" in detail. Cover:
-1. Problem intuition and core concept
-2. Brute force approach with time and space complexity
-3. Optimal solution walkthrough with code and complexity analysis`;
-  return `https://chatgpt.com/?q=${encodeURIComponent(prompt)}`;
+  return getChatGPTAiPromptUrl(problemName);
 }
 
 function ThemedTooltip({ hint, children }: { hint: string; children: React.ReactNode }) {
@@ -103,7 +101,7 @@ export function ProblemCardHorizontal({
     <>
       <div
         className={cn(
-          "group relative flex flex-col justify-between rounded-2xl border bg-card/80 backdrop-blur-md p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full select-none",
+          "group relative flex flex-col justify-between rounded-2xl border bg-card/80 backdrop-blur-md p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl w-full select-none min-h-[170px]",
           problem.done
             ? "border-emerald-500/40 bg-emerald-500/5 shadow-md shadow-emerald-500/5"
             : "border-white/10 hover:border-primary/40"
@@ -293,19 +291,17 @@ export function ProblemCardHorizontal({
               </button>
             </ThemedTooltip>
 
-            {problem.link && (
-              <ThemedTooltip hint={`Open official page on ${problem.platform}`}>
-                <a
-                  href={problem.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg bg-white/10 hover:bg-white/20 text-foreground px-2.5 py-1 font-medium transition-colors"
-                >
-                  <span>Solve</span>
-                  <ExternalLink className="size-3" />
-                </a>
-              </ThemedTooltip>
-            )}
+            <ThemedTooltip hint="Solve with Interactive ChatGPT DSA AI Tutor">
+              <a
+                href={getChatGPTAiPromptUrl(problem.name)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 font-semibold transition-colors"
+              >
+                <span>Solve</span>
+                <Sparkles className="size-3 text-emerald-400" />
+              </a>
+            </ThemedTooltip>
           </div>
         </div>
       </div>
