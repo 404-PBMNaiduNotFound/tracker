@@ -105,15 +105,15 @@ function canonicalPlatform(raw: string): Platform {
 export function platformSearchLink(name: string, platform: Platform): string {
   const q = encodeURIComponent(name);
   switch (platform) {
-    case "LeetCode":   return `https://leetcode.com/problemset/?search=${q}`;
-    case "GFG":        return `https://www.geeksforgeeks.org/explore?search=${q}`;
+    case "LeetCode": return `https://leetcode.com/problemset/?search=${q}`;
+    case "GFG": return `https://www.geeksforgeeks.org/explore?search=${q}`;
     case "HackerRank": return `https://www.hackerrank.com/domains/data-structures`;
     case "CodeStudio": return `https://www.naukri.com/code360/search?q=${q}`;
-    case "CodeChef":   return `https://www.codechef.com/practice?search=${q}`;
-    case "AtCoder":    return `https://atcoder.jp/tasks?keyword=${q}`;
+    case "CodeChef": return `https://www.codechef.com/practice?search=${q}`;
+    case "AtCoder": return `https://atcoder.jp/tasks?keyword=${q}`;
     case "Codeforces": return `https://codeforces.com/problemset?query=${q}`;
-    case "TUF":        return `https://takeuforward.org/?s=${q}`;
-    default:           return `https://leetcode.com/problemset/?search=${q}`;
+    case "TUF": return `https://takeuforward.org/?s=${q}`;
+    default: return `https://leetcode.com/problemset/?search=${q}`;
   }
 }
 
@@ -123,31 +123,31 @@ function googleSearchUrl(problemName: string) {
 }
 
 export const PLATFORM_META: Record<Platform, { label: string; color: string; bg: string; dot: string }> = {
-  All:        { label: "All",           color: "text-foreground",    bg: "bg-secondary",      dot: "bg-muted-foreground" },
-  LeetCode:   { label: "LeetCode",      color: "text-[#FFA116]",     bg: "bg-[#FFA116]/10",   dot: "bg-[#FFA116]" },
-  CodeStudio: { label: "CodeStudio",    color: "text-[#F97316]",     bg: "bg-[#F97316]/10",   dot: "bg-[#F97316]" },
-  GFG:        { label: "GeeksforGeeks", color: "text-[#2F8D46]",     bg: "bg-[#2F8D46]/10",   dot: "bg-[#2F8D46]" },
-  CodeChef:   { label: "CodeChef",      color: "text-[#5B4638]",     bg: "bg-[#5B4638]/10",   dot: "bg-[#5B4638]" },
-  HackerRank: { label: "HackerRank",    color: "text-[#2EC866]",     bg: "bg-[#2EC866]/10",   dot: "bg-[#2EC866]" },
-  AtCoder:    { label: "AtCoder",       color: "text-[#333333]",     bg: "bg-muted",          dot: "bg-foreground" },
-  Codeforces: { label: "Codeforces",    color: "text-[#1F8ACB]",     bg: "bg-[#1F8ACB]/10",   dot: "bg-[#1F8ACB]" },
-  TUF:        { label: "TUF",           color: "text-primary",       bg: "bg-primary/10",     dot: "bg-primary" },
-  Other:      { label: "Other",         color: "text-muted-foreground", bg: "bg-secondary",   dot: "bg-muted-foreground" },
+  All: { label: "All", color: "text-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
+  LeetCode: { label: "LeetCode", color: "text-[#FFA116]", bg: "bg-[#FFA116]/10", dot: "bg-[#FFA116]" },
+  CodeStudio: { label: "CodeStudio", color: "text-[#F97316]", bg: "bg-[#F97316]/10", dot: "bg-[#F97316]" },
+  GFG: { label: "GeeksforGeeks", color: "text-[#2F8D46]", bg: "bg-[#2F8D46]/10", dot: "bg-[#2F8D46]" },
+  CodeChef: { label: "CodeChef", color: "text-[#5B4638]", bg: "bg-[#5B4638]/10", dot: "bg-[#5B4638]" },
+  HackerRank: { label: "HackerRank", color: "text-[#2EC866]", bg: "bg-[#2EC866]/10", dot: "bg-[#2EC866]" },
+  AtCoder: { label: "AtCoder", color: "text-[#333333]", bg: "bg-muted", dot: "bg-foreground" },
+  Codeforces: { label: "Codeforces", color: "text-[#1F8ACB]", bg: "bg-[#1F8ACB]/10", dot: "bg-[#1F8ACB]" },
+  TUF: { label: "TUF", color: "text-primary", bg: "bg-primary/10", dot: "bg-primary" },
+  Other: { label: "Other", color: "text-muted-foreground", bg: "bg-secondary", dot: "bg-muted-foreground" },
 };
 
 const DIFF_META: Record<string, { label: string; color: string; bg: string }> = {
-  Easy:   { label: "Easy",   color: "text-easy",   bg: "bg-easy/10" },
-  Medium: { label: "Medium", color: "text-medium",  bg: "bg-medium/10" },
-  Hard:   { label: "Hard",   color: "text-hard",    bg: "bg-hard/10" },
+  Easy: { label: "Easy", color: "text-easy", bg: "bg-easy/10" },
+  Medium: { label: "Medium", color: "text-medium", bg: "bg-medium/10" },
+  Hard: { label: "Hard", color: "text-hard", bg: "bg-hard/10" },
   Advanced: { label: "Advanced", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10" },
   Expert: { label: "Expert", color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10" },
   "Multiple Choice": { label: "MCQ", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10" },
 };
 
 const SHEET_META: Record<SheetFilter, { color: string; bg: string }> = {
-  "All":               { color: "text-foreground",  bg: "bg-secondary" },
-  "Core 404":       { color: "text-primary",     bg: "bg-primary/10" },
-  "DSA 500 Practice":  { color: "text-[#00B8A3]",   bg: "bg-[#00B8A3]/10" },
+  "All": { color: "text-foreground", bg: "bg-secondary" },
+  "Core 404": { color: "text-primary", bg: "bg-primary/10" },
+  "DSA 500 Practice": { color: "text-[#00B8A3]", bg: "bg-[#00B8A3]/10" },
 };
 
 // ─── Unified flat problem type ───────────────────────────────────────────────
@@ -166,7 +166,7 @@ function buildAllProblems(): FlatProblem[] {
   let globalId = 1;
   const a2z: FlatProblem[] = SECTIONS.flatMap((sec) =>
     sec.problems
-            .map((p) => {
+      .map((p) => {
         const plat = canonicalPlatform(p.p);
         const link = p.l!; // every core problem now carries a verified link (see master-problems.ts)
         return {
@@ -213,7 +213,7 @@ function countBy<T>(arr: T[], key: (x: T) => string): Record<string, number> {
 // ─── External link helpers ───────────────────────────────────────────────────
 
 function youtubeSearchUrl(problemName: string) {
-  const query = `${problemName} DSA solution intuition walkthrough code`;
+  const query = `${problemName} solution intuition explained NeetCode OR Striver`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 

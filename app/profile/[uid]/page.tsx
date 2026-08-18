@@ -6,12 +6,12 @@ import Link from "next/link";
 import {
   loadUserProfile,
   loadPublicDays,
+  resolveProfileIdentifier,
   type CodingProfiles,
   type CompletedProblemSnapshot,
   type PublicStats,
 } from "@/lib/db";
-import { ExternalLink, Globe, CalendarDays, Code2, Flame, Sparkles } from "lucide-react";
-import { dayProgress } from "@/lib/plan";
+import { ExternalLink, Globe, Code2, Flame, Sparkles } from "lucide-react";
 import { SubmissionHeatmap } from "@/components/SubmissionHeatmap";
 import { BadgesGrid } from "@/components/BadgesGrid";
 import { computeBadges, currentStreak } from "@/lib/gamification";
@@ -47,12 +47,16 @@ interface ExtendedCompletedSnapshot extends CompletedProblemSnapshot {
 
 export default function PublicProfilePage() {
   const params = useParams<{ uid: string }>();
-  const uid = params?.uid ?? "";
+  // Route folder is still named [uid] to avoid a broad rename, but the value
+  // can now be either a chosen username (new links) or a raw Firebase uid
+  // (links shared before usernames existed) — resolved below.
+  const identifier = params?.uid ?? "";
 
   const [notFound, setNotFound] = useState(false);
   const [selectedProb, setSelectedProb] = useState<ExtendedCompletedSnapshot | null>(null);
 
   const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
   const [photoURL, setPhotoURL] = useState("");
   const [bannerURL, setBannerURL] = useState("");
   const [bio, setBio] = useState("");
@@ -68,16 +72,22 @@ export default function PublicProfilePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!identifier) return;
     setLoading(true);
 
-    Promise.all([loadUserProfile(uid), loadPublicDays(uid)])
-      .then(([p, loadedDays]) => {
+    resolveProfileIdentifier(identifier)
+      .then((uid) => {
+        if (!uid) {
+          setNotFound(true);
+          return;
+        }
+        return Promise.all([loadUserProfile(uid), loadPublicDays(uid)]).then(([p, loadedDays]) => {
         if (!p.displayName && !p.bio && !p.photoURL && loadedDays.length === 0) {
           setNotFound(true);
           return;
         }
         setDisplayName(p.displayName ?? "");
+        setUsername(p.username ?? "");
         setPhotoURL(p.photoURL ?? "");
         setBannerURL(p.bannerURL ?? "");
         setBio(p.bio ?? "");
@@ -87,10 +97,11 @@ export default function PublicProfilePage() {
         );
         setCompletedProblems((p.completedProblems as ExtendedCompletedSnapshot[]) ?? []);
         setDays(loadedDays);
+        });
       })
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
-  }, [uid]);
+  }, [identifier]);
 
   const platformOptions = useMemo(
     () => ["All", ...Array.from(new Set(completedProblems.map((p) => p.platform))).sort()],
@@ -111,22 +122,32 @@ export default function PublicProfilePage() {
   const badges = useMemo(() => computeBadges(days), [days]);
   const streakCount = useMemo(() => currentStreak(days), [days]);
 
-  // Heatmap calculations
-  const heatmapData = useMemo(() => {
-    return (days ?? [])
-      .filter((d) => !d.skipped)
-      .map((d) => ({ date: d.date, solved: dayProgress(d).done }));
-  }, [days]);
-
-  const detailMap = useMemo(() => {
-    const map: Record<string, any[]> = {};
-    (days ?? []).forEach((d) => {
-      const doneProbs = d.problems.filter((p) => p.done);
-      if (doneProbs.length > 0) {
-        map[d.date] = doneProbs;
+  // Heatmap calculations — grouped by the date each problem was actually
+  // marked done (not the day it was originally assigned to), so a backlog
+  // problem solved today shows up on today's square. Falls back to the
+  // day's own date for rows completed before this field existed.
+  const { heatmapData, detailMap } = useMemo(() => {
+    const dateMap = new Map<string, any[]>();
+    for (const day of days ?? []) {
+      const doneProbs = day.problems.filter((p) => p.done);
+      for (const p of doneProbs) {
+        const dateStr = p.completedAt || day.date;
+        const existing = dateMap.get(dateStr) ?? [];
+        dateMap.set(dateStr, [...existing, p]);
       }
+    }
+    const hData: { date: string; solved: number }[] = [];
+    const dMap: Record<string, any[]> = {};
+    dateMap.forEach((probs, dateStr) => {
+      hData.push({ date: dateStr, solved: probs.length });
+      dMap[dateStr] = probs;
     });
-    return map;
+    for (const day of days ?? []) {
+      if (!day.skipped && !dateMap.has(day.date)) {
+        hData.push({ date: day.date, solved: 0 });
+      }
+    }
+    return { heatmapData: hData, detailMap: dMap };
   }, [days]);
 
   if (loading) {
@@ -146,9 +167,16 @@ export default function PublicProfilePage() {
         <p className="text-muted-foreground">This profile doesn&apos;t exist or hasn&apos;t been set up yet.</p>
         <Link
           href="/"
-          className="mt-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors"
+          className="mt-2 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
         >
-          Go to DSA⁴⁰⁴
+          <div className="size-5 rounded-full overflow-hidden border border-border shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+            <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+          </div>
+          <span>Go to</span>
+          <div className="font-display font-black tracking-tighter text-sm leading-none inline-flex items-baseline select-none">
+            <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">DSA</span>
+            <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent ml-[0.5px]">⁴⁰⁴</span>
+          </div>
         </Link>
       </div>
     );
@@ -158,9 +186,16 @@ export default function PublicProfilePage() {
     <div className="min-h-screen bg-background">
       {/* ── Branded top bar ── */}
       <header className="border-b border-border bg-background/95 backdrop-blur sticky top-0 z-10">
-        <div className="mx-auto flex max-w-3xl items-center gap-2 px-4 py-3">
-          <CalendarDays className="size-5 text-primary" aria-hidden="true" />
-          <span className="font-semibold text-sm">DSA⁴⁰⁴</span>
+        <div className="mx-auto flex max-w-3xl items-center gap-2.5 px-4 py-3">
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <div className="size-7 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+              <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+            </div>
+            <div className="font-display font-black tracking-tighter text-[20px] leading-none flex items-baseline select-none">
+              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
+              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>
+            </div>
+          </Link>
           <span className="ml-auto text-xs text-muted-foreground">Public Profile</span>
         </div>
       </header>
@@ -169,34 +204,35 @@ export default function PublicProfilePage() {
 
         {/* ── GitHub / LeetCode Style Profile Hero Card ── */}
         <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <div className="h-32 w-full bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 border-b border-border/40 relative overflow-hidden">
+          <div className="h-24 sm:h-32 w-full bg-gradient-to-r from-primary/30 via-primary/10 to-accent/20 border-b border-border/40 relative overflow-hidden">
             {bannerURL && (
               <img src={bannerURL} alt="Profile cover banner" className="absolute inset-0 size-full object-cover" />
             )}
-            <div className="absolute right-4 top-3 flex items-center gap-2 z-10">
-              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-3 py-1 text-xs font-semibold text-foreground border border-border/50 shadow-sm">
+            <div className="absolute right-2 top-2 sm:right-4 sm:top-3 flex flex-wrap justify-end items-center gap-1.5 sm:gap-2 z-10 max-w-[85%]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-foreground border border-border/50 shadow-sm">
                 <Flame className="size-3.5 text-orange-500" />
                 {streakCount} Day Streak
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-3 py-1 text-xs font-semibold text-primary border border-border/50 shadow-sm">
+              <span className="inline-flex items-center gap-1 rounded-full bg-background/85 backdrop-blur px-2 sm:px-3 py-1 text-[11px] sm:text-xs font-semibold text-primary border border-border/50 shadow-sm">
                 <Sparkles className="size-3.5" />
                 {publicStats.totalSolved} Solved
               </span>
             </div>
           </div>
 
-          <div className="px-6 pb-6 pt-0">
-            <div className="flex flex-wrap items-end gap-5 -mt-12 mb-3">
-              <div className="size-24 shrink-0 overflow-hidden rounded-full border-4 border-card bg-muted shadow-lg flex items-center justify-center z-10">
+          <div className="px-4 sm:px-6 pb-6 pt-0">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-end gap-4 sm:gap-5 -mt-10 sm:-mt-12 mb-3">
+              <div className="size-20 sm:size-24 shrink-0 overflow-hidden rounded-full border-4 border-card bg-muted shadow-lg flex items-center justify-center z-10">
                 {photoURL ? (
                   <img src={photoURL} alt={`${displayName} avatar`} className="size-full object-cover" />
                 ) : (
-                  <span className="text-4xl font-bold text-primary">{initials}</span>
+                  <span className="text-3xl sm:text-4xl font-bold text-primary">{initials}</span>
                 )}
               </div>
 
-              <div className="flex-1 min-w-0 pt-2">
-                <h1 className="text-xl font-bold">{displayName || "Anonymous Coder"}</h1>
+              <div className="flex-1 min-w-0 pt-1 sm:pt-2">
+                <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">{displayName || "Anonymous Coder"}</h1>
+                {username && <p className="text-xs font-mono font-medium text-primary mt-0.5 truncate">@{username}</p>}
                 {bio && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{bio}</p>}
               </div>
             </div>
@@ -219,13 +255,13 @@ export default function PublicProfilePage() {
                     href={url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-3 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-primary/40"
+                    className="flex items-center gap-2 sm:gap-3 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-primary/40 min-w-0"
                     style={{ background: meta.bgColor }}
                   >
-                    <span className="text-xs font-semibold w-28 shrink-0" style={{ color: meta.color }}>
+                    <span className="text-xs font-semibold w-20 sm:w-28 shrink-0 truncate" style={{ color: meta.color }}>
                       {meta.label}
                     </span>
-                    <span className="flex items-center gap-1 text-xs text-primary truncate">
+                    <span className="flex items-center gap-1 text-xs text-primary truncate min-w-0">
                       <ExternalLink className="size-3 shrink-0" />
                       <span className="truncate">{url.replace(/^https?:\/\/(www\.)?/, "")}</span>
                     </span>
@@ -407,8 +443,14 @@ export default function PublicProfilePage() {
         {/* ── Footer ── */}
         <footer className="pb-8 text-center text-xs text-muted-foreground">
           Built with{" "}
-          <Link href="/" className="text-primary hover:underline">
-            DSA⁴⁰⁴
+          <Link href="/" className="inline-flex items-center gap-1.5 align-middle hover:opacity-90 transition-opacity">
+            <div className="size-4 rounded-full overflow-hidden border border-border shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+              <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+            </div>
+            <span className="font-display font-black tracking-tighter text-xs leading-none flex items-baseline select-none">
+              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">DSA</span>
+              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent ml-[0.5px]">⁴⁰⁴</span>
+            </span>
           </Link>
           {" "}— Track your DSA journey.
         </footer>

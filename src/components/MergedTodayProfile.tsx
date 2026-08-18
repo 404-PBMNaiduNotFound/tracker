@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { updateProfile } from "firebase/auth";
 import { auth } from "@/integrations/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
 import { useProblemCompletions } from "@/hooks/useProblemCompletions";
 import {
-  loadUserProfile,
+  loadOwnerProfile,
   saveUserProfile,
   saveAvatarBase64,
   saveBannerBase64,
@@ -203,21 +204,18 @@ export function MergedTodayProfile() {
   // Profile Drawer Edit toggle
   const [showProfileCard, setShowProfileCard] = useState(false);
 
-  // Sync tab from URL params
+  // Sync tab from URL params reactively (handles sidebar navigation)
+  const searchParams = useSearchParams();
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "profile") {
-        setActiveTab("profile");
-        setShowProfileCard(true);
-      } else if (tab === "calendar" || tab === "solved") {
-        setActiveTab("calendar");
-      } else if (tab === "today") {
-        setActiveTab("today");
-      }
+    const tab = searchParams.get("tab");
+    if (tab === "profile") {
+      setActiveTab("profile");
+    } else if (tab === "calendar" || tab === "solved") {
+      setActiveTab("calendar");
+    } else if (tab === "today") {
+      setActiveTab("today");
     }
-  }, []);
+  }, [searchParams]);
 
   // Motivational Quote State
   const [currentQuote, setCurrentQuote] = useState<MotivationalQuote>(getRandomQuote());
@@ -230,6 +228,8 @@ export function MergedTodayProfile() {
 
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
+  const [aboutMe, setAboutMe] = useState("");
+  const [username, setUsername] = useState("");
   const [photoURL, setPhotoURL] = useState("");
   const [bannerURL, setBannerURL] = useState("");
   const [codingProfiles, setCodingProfiles] = useState<CodingProfiles>({});
@@ -243,27 +243,37 @@ export function MergedTodayProfile() {
 
   // Record visit activity on mount
   useEffect(() => {
-    recordActivity();
-  }, []);
+    if (user?.uid) recordActivity(user.uid);
+  }, [user]);
 
   // Load user profile from DB
-  // Load user profile from local storage and DB
   useEffect(() => {
-    const localAvatar = typeof window !== "undefined" ? localStorage.getItem("local_avatar_url") : null;
-    const localBanner = typeof window !== "undefined" ? localStorage.getItem("local_banner_url") : null;
+    if (!user || !user.uid) {
+      setLoadingProfile(false);
+      setPhotoURL("");
+      setBannerURL("");
+      return;
+    }
+    const localAvatar = localStorage.getItem(`local_avatar_url_${user.uid}`);
+    const localBanner = localStorage.getItem(`local_banner_url_${user.uid}`);
     if (localAvatar) setPhotoURL(localAvatar);
     if (localBanner) setBannerURL(localBanner);
 
-    if (!user) {
-      setLoadingProfile(false);
-      return;
-    }
     setLoadingProfile(true);
-    loadUserProfile(user.uid)
+    loadOwnerProfile(user.uid)
       .then((p) => {
         setDisplayName(p.displayName ?? user.displayName ?? "");
         setBio(p.bio ?? "");
-        if (p.photoURL) setPhotoURL(p.photoURL);
+        setAboutMe(p.aboutMe ?? "");
+        setUsername(p.username ?? "");
+        // Auto-fill from the Google account photo the first time there's no
+        // avatar saved yet — never overrides a photo the user chose.
+        if (p.photoURL) {
+          setPhotoURL(p.photoURL);
+        } else if (!localAvatar && user.photoURL) {
+          setPhotoURL(user.photoURL);
+          saveUserProfile(user.uid, { photoURL: user.photoURL }).catch(() => {});
+        }
         if (p.bannerURL) setBannerURL(p.bannerURL);
         setCodingProfiles(p.codingProfiles ?? {});
         setDraftCustomLinks(p.codingProfiles?.customLinks ?? []);
@@ -274,6 +284,10 @@ export function MergedTodayProfile() {
   // Today's Day selection logic
   const iso = todayIso();
   const todayDay = days.find((d) => d.date === iso && !d.skipped);
+  // When today's plan is deleted, the day that shifts forward fills its slot
+  // and fully replaces it as "today" — restoring the deleted day now happens
+  // from the Topic section (see the "Deleted" toast), so Today should just
+  // show the day that took its place, not the deleted stub.
   const futureFallback = days.find((d) => d.date > iso && !d.skipped);
   const pastFallback = days.filter((d) => d.date < iso && !d.skipped).at(-1);
   const currentDay = todayDay ?? futureFallback ?? pastFallback ?? days[0];
@@ -288,10 +302,38 @@ export function MergedTodayProfile() {
   const isPast = displayedDay ? displayedDay.date < iso : false;
 
   // Calculate user inactivity gap
-  const inactivityInfo = useMemo(() => getInactivityDays(days), [days]);
+  const inactivityInfo = useMemo(() => getInactivityDays(days, user?.uid), [days, user]);
 
-  // Streak & Solved Stats
+  // Streak — standard derived streak from active plan days
   const streakCount = useMemo(() => currentStreak(days), [days]);
+
+  const userNameDisplay = displayName || user?.displayName || user?.email?.split("@")[0] || "Developer";
+
+  const timeBasedGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+
+    if (hour >= 5 && hour < 12) {
+      return {
+        greeting: `Good morning, ${userNameDisplay}! ☀️`,
+        subtext: "Fresh morning start! Target: Tackle today's core problems & build your DSA momentum.",
+      };
+    } else if (hour >= 12 && hour < 17) {
+      return {
+        greeting: `Good afternoon, ${userNameDisplay}! 🌤️`,
+        subtext: "Mid-day coding boost! Target: Solve today's problems & sharpen your DSA patterns.",
+      };
+    } else if (hour >= 17 && hour < 21) {
+      return {
+        greeting: `Good evening, ${userNameDisplay}! 🌙`,
+        subtext: "Evening sprint! Target: Clear today's checklist and keep your streak alive.",
+      };
+    } else {
+      return {
+        greeting: `Late night coding, ${userNameDisplay}! 🌌`,
+        subtext: "Night owl mode activated! Target: Conquer today's problems before calling it a day.",
+      };
+    }
+  }, [userNameDisplay]);
 
   // Solved problems snapshots
   const completedProblems = useMemo<CompletedProblemSnapshot[]>(() => {
@@ -300,14 +342,14 @@ export function MergedTodayProfile() {
 
     for (const day of days) {
       for (const p of day.problems) {
-        if (p.done && p.link && p.link.trim() !== "" && !seen.has(p.name)) {
+        if (p.done && !seen.has(p.name)) {
           seen.add(p.name);
           const sub = submissions[p.name];
           list.push({
             name: p.name,
-            platform: p.platform,
-            difficulty: p.difficulty,
-            link: p.link,
+            platform: p.platform || "DSA",
+            difficulty: p.difficulty || "Medium",
+            link: p.link || "",
             ...(sub ? { code: sub.code, submissionLink: sub.link } : {}),
           });
         }
@@ -315,14 +357,14 @@ export function MergedTodayProfile() {
     }
 
     for (const fp of ALL_PROBLEMS) {
-      if (pbCompleted.has(fp.name) && fp.link && fp.link.trim() !== "" && !seen.has(fp.name)) {
+      if (pbCompleted.has(fp.name) && !seen.has(fp.name)) {
         seen.add(fp.name);
         const sub = submissions[fp.name];
         list.push({
           name: fp.name,
-          platform: fp.platform,
-          difficulty: fp.difficulty,
-          link: fp.link,
+          platform: fp.platform || "DSA",
+          difficulty: fp.difficulty || "Medium",
+          link: fp.link || "",
           ...(sub ? { code: sub.code, submissionLink: sub.link } : {}),
         });
       }
@@ -347,9 +389,14 @@ export function MergedTodayProfile() {
 
     for (const day of days) {
       const doneProbs = day.problems.filter((p) => p.done);
-      if (doneProbs.length > 0) {
-        const existing = dateMap.get(day.date) ?? [];
-        dateMap.set(day.date, [...existing, ...doneProbs]);
+      for (const p of doneProbs) {
+        // Group by the date the problem was actually marked done, not the
+        // day it was originally assigned to — so a backlog problem solved
+        // today lands on today's heatmap square. Falls back to the day's
+        // own date for rows completed before this field existed.
+        const dateStr = p.completedAt || day.date;
+        const existing = dateMap.get(dateStr) ?? [];
+        dateMap.set(dateStr, [...existing, p]);
       }
     }
 
@@ -447,6 +494,7 @@ export function MergedTodayProfile() {
       await saveUserProfile(user.uid, {
         displayName,
         bio,
+        aboutMe,
         publicStats,
         completedProblems,
       });
@@ -456,7 +504,7 @@ export function MergedTodayProfile() {
     } finally {
       setSaving(false);
     }
-  }, [user, displayName, bio, stats, completedProblems]);
+  }, [user, displayName, bio, aboutMe, stats, completedProblems]);
 
   // Save coding profiles handles
   const saveCodingProfiles = useCallback(async () => {
@@ -475,7 +523,7 @@ export function MergedTodayProfile() {
     }
   }, [user, draftProfiles, draftCustomLinks]);
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/profile/${user?.uid}` : "";
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/profile/${username || user?.uid}` : "";
   const copyShareLink = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -487,7 +535,6 @@ export function MergedTodayProfile() {
     }
   }, [shareUrl]);
 
-  const userNameDisplay = displayName || user?.displayName || user?.email?.split("@")[0] || "Developer";
   const initials = userNameDisplay[0]?.toUpperCase() ?? "D";
 
   if (loading || loadingProfile) {
@@ -518,460 +565,129 @@ export function MergedTodayProfile() {
         className="hidden"
       />
 
-      {/* ── Top Header Section: 2 Column Layout (Left: 2 Stacked Rows for Motivation & Profile | Right: LeetCode Calendar Widget) ── */}
+      {/* ── Top Row: Greeting + Topic Header (left) | Heatmap (right) ── */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-        {/* Left Side (2/3 width on desktop): 2 Stacked Rows (Motivation Card + Profile Overview Card) */}
-        <div className="lg:col-span-2 flex flex-col justify-between gap-4">
-          {/* Row 1: Motivational Callout & Daily Quote — compact height */}
-          <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/10 via-purple-500/10 to-emerald-500/10 p-3 sm:p-4 backdrop-blur-md shadow-xl shrink-0 flex flex-col justify-between space-y-2">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
+        {/* Left (2/3): Highlighted Greeting Card + Today's Topic Description Header Card */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+          {/* Greeting Card — expanded height & text to level top row perfectly */}
+          <div className={cn(
+            "rounded-3xl border p-5 sm:p-6 backdrop-blur-md shadow-xl flex-1 flex flex-col justify-center min-h-[135px]",
+            inactivityInfo.isLongAbsence
+              ? "border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-rose-500/10"
+              : streakCount >= 7
+              ? "border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-primary/10"
+              : "border-primary/30 bg-gradient-to-r from-primary/15 via-purple-500/10 to-emerald-500/10"
+          )}>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3.5">
+                {/* Dynamic icon */}
                 {inactivityInfo.isLongAbsence ? (
-                  <div className="rounded-2xl bg-amber-500/20 p-2 text-amber-400 shrink-0 border border-amber-500/30">
-                    <Rocket className="size-5 animate-pulse" />
+                  <div className="rounded-2xl bg-amber-500/20 p-3 shrink-0 border border-amber-500/30">
+                    <Rocket className="size-7 text-amber-400 animate-pulse" />
+                  </div>
+                ) : streakCount >= 7 ? (
+                  <div className="rounded-2xl bg-emerald-500/20 p-3 shrink-0 border border-emerald-500/30">
+                    <Flame className="size-7 text-emerald-400" />
                   </div>
                 ) : (
-                  <div className="rounded-2xl bg-emerald-500/20 p-2 text-emerald-400 shrink-0 border border-emerald-500/30">
-                    <HeartHandshake className="size-5" />
+                  <div className="rounded-2xl bg-primary/20 p-3 shrink-0 border border-primary/30">
+                    <HeartHandshake className="size-7 text-primary" />
                   </div>
                 )}
-                <div>
-                  {inactivityInfo.isLongAbsence ? (
-                    <h3 className="text-base font-bold text-amber-300 tracking-tight">
-                      After a long time, welcome back, {userNameDisplay}! 👋
-                    </h3>
+                <div className="space-y-1">
+                  {inactivityInfo.daysInactive >= 14 ? (
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight">
+                        It's been {inactivityInfo.daysInactive} days, {userNameDisplay}! Time to reclaim your streak! 🔥
+                      </h2>
+                      <p className="text-sm text-amber-300/80 font-medium">Long time no see — your roadmap is waiting. Let's get back on track!</p>
+                    </>
+                  ) : inactivityInfo.daysInactive >= 7 ? (
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight">
+                        Welcome back, {userNameDisplay}! It's been a week 👋
+                      </h2>
+                      <p className="text-sm text-amber-300/80 font-medium">You were away for {inactivityInfo.daysInactive} days — start fresh, solve today's problems!</p>
+                    </>
+                  ) : inactivityInfo.daysInactive >= 3 ? (
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-orange-300 tracking-tight">
+                        Back after {inactivityInfo.daysInactive} days, {userNameDisplay}! 💪
+                      </h2>
+                      <p className="text-sm text-orange-300/80 font-medium">Pick up where you left off — your DSA journey continues today!</p>
+                    </>
+                  ) : streakCount >= 7 ? (
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-emerald-300 tracking-tight">
+                        🔥 {streakCount}-day streak! {timeBasedGreeting.greeting}
+                      </h2>
+                      <p className="text-sm text-emerald-300/80 font-medium">{timeBasedGreeting.subtext}</p>
+                    </>
+                  ) : streakCount >= 3 ? (
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-primary tracking-tight">
+                        ⚡ {streakCount} days strong! {timeBasedGreeting.greeting}
+                      </h2>
+                      <p className="text-sm text-muted-foreground font-medium">{timeBasedGreeting.subtext}</p>
+                    </>
                   ) : (
-                    <h3 className="text-base font-bold text-foreground tracking-tight">
-                      Welcome back, {userNameDisplay}! ⚡
-                    </h3>
+                    <>
+                      <h2 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">
+                        {timeBasedGreeting.greeting}
+                      </h2>
+                      <p className="text-sm text-muted-foreground font-medium">{timeBasedGreeting.subtext}</p>
+                    </>
                   )}
-                  <p className="text-xs text-muted-foreground">
-                    Build your DSA streak! Target: Solve today's core problems
-                  </p>
                 </div>
               </div>
-
-              <div className="flex items-center gap-1.5 rounded-full border border-orange-500/30 bg-orange-500/10 px-3 py-1 text-xs font-bold text-orange-400 shrink-0">
-                <Flame className="size-3.5 text-orange-500 animate-pulse" />
-                <span>{streakCount} Day Streak</span>
-              </div>
-            </div>
-
-            {/* Daily Quote Card */}
-            <div className="rounded-2xl border border-white/10 bg-card/60 backdrop-blur-md p-3 space-y-1">
-              <div className="flex items-center justify-between text-xs font-semibold text-primary">
-                <span className="flex items-center gap-1">
-                  <Quote className="size-3 text-primary" /> Daily Motivation
-                </span>
-                <ThemedTooltip hint="Refresh for a new daily motivational quote">
-                  <button
-                    onClick={() => setCurrentQuote(getRandomQuote())}
-                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Refresh
-                  </button>
-                </ThemedTooltip>
-              </div>
-              <p className="text-xs italic text-foreground/90 line-clamp-1">"{currentQuote.quote}"</p>
-              <p className="text-[10px] text-right font-semibold text-muted-foreground">— {currentQuote.author}</p>
-            </div>
-          </div>
-
-          {/* Row 2: User Profile Overview Card (Banner Backdrop & Overlapping Avatar) — larger height */}
-          <div className="rounded-3xl border border-white/15 bg-card/80 backdrop-blur-xl shadow-xl flex-1 relative overflow-hidden flex flex-col justify-between min-h-[220px] sm:min-h-[260px]">
-            {/* Cover Banner Backdrop */}
-            <div
-              onClick={() => bannerInputRef.current?.click()}
-              className="h-36 sm:h-44 w-full bg-gradient-to-r from-primary/30 via-purple-600/20 to-emerald-500/20 relative overflow-hidden rounded-t-3xl border-b border-white/10 cursor-pointer group"
-              title="Click to change Cover Banner"
-            >
-              {bannerURL ? (
-                <img src={bannerURL} alt="banner" className="size-full object-cover" />
-              ) : (
-                <div className="size-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/25 via-background/40 to-background/90" />
-              )}
-              <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5 backdrop-blur-[2px]">
-                <Camera className="size-4 text-primary" />
-                <span>Upload Banner</span>
-              </div>
-            </div>
-
-            {/* Profile Avatar & Info Row (Half Overlapping Banner) */}
-            <div className="p-4 sm:p-5 pt-0 relative flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                {/* Photo Avatar — half overlaps banner */}
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="-mt-12 sm:-mt-14 ml-2 flex size-24 sm:size-28 shrink-0 overflow-hidden rounded-full border-[5px] border-card bg-card shadow-2xl items-center justify-center z-10 cursor-pointer group relative"
-                  title="Click to change Profile Photo"
-                >
-                  {photoURL ? (
-                    <img src={photoURL} alt="avatar" className="size-full object-cover" />
-                  ) : (
-                    <span className="text-3xl font-extrabold text-primary">{initials}</span>
-                  )}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white rounded-full">
-                    <Camera className="size-5" />
-                  </div>
-                </div>
-
-                <div className="min-w-0 pt-2">
-                  <h4 className="text-sm sm:text-base font-bold text-foreground truncate">{userNameDisplay}</h4>
-                  <p className="text-xs text-muted-foreground truncate">{bio || "SDE Aspirant · DSA Prep Tracker"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0 pt-2">
-                <ThemedTooltip hint="Copy shareable public profile link to clipboard">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs px-3 gap-1.5 rounded-xl border-white/10"
-                    onClick={copyShareLink}
-                  >
-                    {copied ? <Check className="size-3.5 text-emerald-400" /> : <Share2 className="size-3.5 text-primary" />}
-                    <span>{copied ? "Copied" : "Share Profile"}</span>
-                  </Button>
-                </ThemedTooltip>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side (1/3 width on desktop): LeetCode Monthly Calendar Widget (Combined height) */}
-        <div className="lg:col-span-1 h-full">
-          <LeetCodeCalendarWidget
-            heatmapData={heatmapData}
-            streakCount={streakCount}
-            selectedDate={selectedCalendarDate}
-            onSelectDate={(dStr) => {
-              setSelectedCalendarDate(dStr);
-              setActiveTab("today");
-              toast.info(`Viewing problems for ${formatDate(dStr)}`);
-            }}
-          />
-        </div>
-      </section>
-
-      {/* ── Collapsible Full Profile Photo, Banner & Handles Editor (Shown when Edit Handles is clicked) ── */}
-      {showProfileCard && (
-        <section className="relative overflow-hidden rounded-3xl border border-white/15 bg-card/80 backdrop-blur-xl p-6 shadow-2xl space-y-5 animate-fade-in-down">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-              <UserCircle2 className="size-5 text-primary" />
-              <span>Developer Profile & Coding Handles Editor</span>
-            </h3>
-            <Button variant="ghost" size="sm" className="size-7 p-0" onClick={() => setShowProfileCard(false)}>
-              <X className="size-4" />
-            </Button>
-          </div>
-
-          {/* Photo Avatar & Banner Image Upload Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2 rounded-2xl border border-white/10 bg-background/40 p-4">
-              <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <Camera className="size-3.5 text-primary" /> Profile Photo (Avatar)
-              </Label>
-              <div className="flex items-center gap-3">
-                <div className="size-12 overflow-hidden rounded-full border border-primary/40 bg-muted shrink-0 flex items-center justify-center">
-                  {photoURL ? <img src={photoURL} alt="avatar" className="size-full object-cover" /> : <span className="font-bold">{initials}</span>}
-                </div>
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
-                  Upload Avatar Photo
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2 rounded-2xl border border-white/10 bg-background/40 p-4">
-              <Label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
-                <ImageIcon className="size-3.5 text-primary" /> Profile Cover Banner
-              </Label>
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-24 overflow-hidden rounded-xl border border-white/10 bg-muted shrink-0">
-                  {bannerURL ? <img src={bannerURL} alt="banner" className="size-full object-cover" /> : <div className="size-full bg-gradient-to-r from-primary/30 to-purple-600/30" />}
-                </div>
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-xl" onClick={() => bannerInputRef.current?.click()} disabled={uploadingBanner}>
-                  Upload Banner Image
-                </Button>
+              {/* Streak pill */}
+              <div className={cn(
+                "flex items-center gap-2 rounded-full px-4 py-1.5 text-xs sm:text-sm font-bold shrink-0 shadow-sm",
+                streakCount > 0
+                  ? "border border-orange-500/30 bg-orange-500/10 text-orange-400"
+                  : "border border-white/10 bg-white/5 text-muted-foreground"
+              )}>
+                <Flame className="size-4 text-orange-500 animate-pulse" />
+                <span>{streakCount > 0 ? `${streakCount} Day Streak` : "Start your streak!"}</span>
               </div>
             </div>
           </div>
 
-          {/* Basic Info: Display Name & Bio */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="dp-name" className="text-xs font-semibold text-muted-foreground">Display Name</Label>
-              <Input
-                id="dp-name"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
-                className="bg-background/40 border-white/10 rounded-xl text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="dp-bio" className="text-xs font-semibold text-muted-foreground">Bio / Target Goal</Label>
-              <Input
-                id="dp-bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="SDE Aspirant · Target SDE 1 role..."
-                className="bg-background/40 border-white/10 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button size="sm" className="gap-2 rounded-xl" onClick={saveBasicInfo} disabled={saving}>
-              {saving ? <RefreshCw className="size-4 animate-spin" /> : <Check className="size-4" />}
-              Save Profile Details
-            </Button>
-          </div>
-        </section>
-      )}
-
-      {/* ── 21st.dev Segmented Tab Navigation ── */}
-      <nav className="flex items-center justify-between flex-wrap gap-3">
-        <div className="inline-flex rounded-2xl border border-white/10 bg-card/80 p-1.5 backdrop-blur-xl shadow-lg">
-          <button
-            onClick={() => setActiveTab("today")}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 select-none",
-              activeTab === "today"
-                ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-md font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-            )}
-          >
-            <ListTodo className="size-4" />
-            <span>Today's Workspace</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setActiveTab("profile");
-              setShowProfileCard(true);
-            }}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 select-none",
-              activeTab === "profile"
-                ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-md font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-            )}
-          >
-            <UserCircle2 className="size-4" />
-            <span>Developer Profile</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("calendar")}
-            className={cn(
-              "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-200 select-none",
-              activeTab === "calendar"
-                ? "bg-gradient-to-r from-primary to-purple-600 text-white shadow-md font-bold"
-                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-            )}
-          >
-            <CalendarIcon className="size-4" />
-            <span>Solved</span>
-          </button>
-        </div>
-
-        {/* Selected Date Reset Banner */}
-        {selectedCalendarDate && (
-          <div className="flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-400 font-semibold">
-            <span>Calendar View: {formatDate(selectedCalendarDate)}</span>
-            <button
-              onClick={() => setSelectedCalendarDate(null)}
-              className="flex items-center gap-1 rounded-md bg-emerald-500/20 px-2 py-0.5 hover:bg-emerald-500/30 transition-colors text-white"
-            >
-              <RotateCcw className="size-3" />
-              <span>Back to Today</span>
-            </button>
-          </div>
-        )}
-      </nav>
-
-      {/* ── TAB 1: TODAY'S WORKSPACE (Topic Details First + Problems ONCE) ── */}
-      {activeTab === "today" && (
-        <div className="space-y-6 animate-fade-in-up">
-          {/* Day Detail Component handles Topic Details first, then Today's Core Problems, Contests, and Checklist */}
-          {displayedDay && (
+          {/* Today Topic Description Header Section (Topic info, status, Postpone/Merge/Borrow/Delete/Restore, progress bar) */}
+          {(displayedDay ?? currentDay) && (
             <DayDetail
-              day={displayedDay}
+              day={displayedDay ?? currentDay!}
               readOnly={!isExactlyToday && !isPast}
               lateMode={isPast && !isExactlyToday}
+              headerOnly
             />
           )}
         </div>
-      )}
 
-      {/* ── TAB 2: DEVELOPER PROFILE & PLATFORM HANDLES ── */}
-      {activeTab === "profile" && (
-        <div className="space-y-6 animate-fade-in-up">
-          {/* Coding Platforms Handles */}
-          <section className="rounded-3xl border border-white/10 bg-card/60 backdrop-blur-xl p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Code2 className="size-5 text-primary" />
-                <h3 className="text-lg font-bold text-foreground">Coding Profiles & Links</h3>
-              </div>
-
-              {!editingProfiles ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 rounded-xl border-white/10"
-                  onClick={() => {
-                    setDraftProfiles({ ...codingProfiles });
-                    setDraftCustomLinks(codingProfiles.customLinks ?? []);
-                    setEditingProfiles(true);
-                  }}
-                >
-                  <Pencil className="size-3.5" /> Edit Handles
-                </Button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setEditingProfiles(false)}>
-                    <X className="size-4" />
-                  </Button>
-                  <Button size="sm" className="gap-2 rounded-xl" onClick={saveCodingProfiles} disabled={saving}>
-                    <Check className="size-4" /> Save Handles
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {editingProfiles ? (
-              <div className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {PLATFORMS.map((p) => (
-                    <div key={p.key} className="space-y-1">
-                      <Label htmlFor={`cp-${p.key}`} style={{ color: p.color }} className="text-xs font-semibold">
-                        {p.label}
-                      </Label>
-                      <Input
-                        id={`cp-${p.key}`}
-                        value={draftProfiles[p.key] ?? ""}
-                        onChange={(e) => setDraftProfiles((prev) => ({ ...prev, [p.key]: e.target.value }))}
-                        placeholder={p.placeholder}
-                        className="bg-background/40 border-white/10 rounded-xl text-sm"
-                      />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Custom Links Edit */}
-                <div className="pt-3 border-t border-white/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-foreground">Custom Links</span>
-                    <button
-                      type="button"
-                      onClick={() => setDraftCustomLinks((prev) => [...prev, { label: "", url: "" }])}
-                      className="flex items-center gap-1 rounded-md border border-dashed border-primary/60 px-2 py-1 text-xs text-primary hover:bg-primary/10 transition-colors"
-                    >
-                      <Plus className="size-3.5" /> Add link
-                    </button>
-                  </div>
-                  <div className="space-y-2">
-                    {draftCustomLinks.map((cl, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <Input
-                          value={cl.label}
-                          onChange={(e) =>
-                            setDraftCustomLinks((prev) => {
-                              const next = [...prev];
-                              next[idx] = { ...next[idx], label: e.target.value };
-                              return next;
-                            })
-                          }
-                          placeholder="Label (e.g. Portfolio)"
-                          className="w-36 shrink-0 bg-background/40 border-white/10 text-sm"
-                        />
-                        <Input
-                          value={cl.url}
-                          onChange={(e) =>
-                            setDraftCustomLinks((prev) => {
-                              const next = [...prev];
-                              next[idx] = { ...next[idx], url: e.target.value };
-                              return next;
-                            })
-                          }
-                          placeholder="https://..."
-                          className="bg-background/40 border-white/10 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setDraftCustomLinks((prev) => prev.filter((_, i) => i !== idx))}
-                          className="shrink-0 rounded-md p-1.5 text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {PLATFORMS.map((p) => {
-                  const url = codingProfiles[p.key];
-                  return (
-                    <div
-                      key={p.key}
-                      className="flex items-center gap-3 rounded-2xl border border-white/10 p-3 backdrop-blur-md transition-all hover:border-primary/50"
-                      style={{ background: url ? p.bgColor : "rgba(255,255,255,0.02)" }}
-                    >
-                      <span className="text-xs font-bold w-24 shrink-0" style={{ color: p.color }}>
-                        {p.label}
-                      </span>
-                      {url ? (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1 text-xs text-primary hover:underline truncate"
-                        >
-                          <ExternalLink className="size-3 shrink-0" />
-                          <span className="truncate">{url.replace(/^https?:\/\/(www\.)?/, "")}</span>
-                        </a>
-                      ) : (
-                        <span className="text-xs text-muted-foreground/60 italic">Not linked</span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* Badges & Achievements */}
-          <section className="rounded-3xl border border-white/10 bg-card/60 backdrop-blur-xl p-6 shadow-xl">
-            <BadgesGrid badges={badges} />
-          </section>
-
-          {/* Platform Solved Breakdown Stats */}
-          <section className="rounded-3xl border border-white/10 bg-card/60 backdrop-blur-xl p-6 shadow-xl space-y-4">
+        {/* Right (1/3): Activity Heatmap */}
+        <div className="lg:col-span-1 h-full flex flex-col">
+          <div className="rounded-3xl border border-white/10 bg-card/60 backdrop-blur-xl shadow-xl p-4 sm:p-5 h-full flex flex-col justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Globe className="size-5 text-primary" />
-              <h3 className="text-lg font-bold text-foreground">Platform Problem Breakdown</h3>
+              <Flame className="size-4 text-emerald-400" />
+              <h3 className="text-sm font-bold text-foreground">Activity Heatmap</h3>
             </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {Object.entries(stats.byPlatform).map(([platform, count]) => (
-                <div key={platform} className="rounded-2xl border border-white/10 bg-background/40 p-4">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">{platform}</p>
-                  <p className="mt-1 font-extrabold text-2xl tabular-nums text-primary">{count}</p>
-                </div>
-              ))}
-              {Object.keys(stats.byPlatform).length === 0 && (
-                <p className="col-span-full text-xs text-muted-foreground italic">
-                  No problems completed yet. Mark problems done on your Today checklist to build your stats!
-                </p>
-              )}
+            <div className="flex-1 flex flex-col justify-center">
+              <SubmissionHeatmap data={heatmapData} detailMap={detailMap} />
             </div>
-          </section>
+          </div>
         </div>
+      </section>
+
+      {/* ── Full-Width Below: Today's Core Problems, Contests, Checklist, Notes ── */}
+      {(displayedDay ?? currentDay) && (
+        <DayDetail
+          day={displayedDay ?? currentDay!}
+          readOnly={!isExactlyToday && !isPast}
+          lateMode={isPast && !isExactlyToday}
+          hideHeader
+        />
       )}
+
 
       {/* ── TAB 3: SOLVED DAYS GREEN HEATMAP CALENDAR ── */}
       {activeTab === "calendar" && (

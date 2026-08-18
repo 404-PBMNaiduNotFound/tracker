@@ -52,7 +52,7 @@ import { ThemeCustomizerPanel } from "../../app/theme-customizer-panel";
 import { GlobalSearchModal } from "@/components/GlobalSearchModal";
 
 const NAV = [
-  { to: "/today", label: "Dashboard", icon: Sparkles, hint: "Your daily topic, core problems, motivational quotes, and LeetCode calendar." },
+  { to: "/today", label: "Today's Workspace", icon: Sparkles, hint: "Your daily topic, core problems, streak, and activity heatmap." },
   { to: "/problems", label: "Problems", icon: Code2, hint: "838+ problems from 2 curated sets — filter by platform, difficulty, or sheet." },
   { to: "/topics", label: "Topic View", icon: LayoutGrid, hint: "All 42 Core 404 topics. Expand any topic, skip topics, track progress." },
   { to: "/weeks", label: "Week View", icon: CalendarRange, hint: "Your 17-week roadmap. See every day's status and jump to any day directly." },
@@ -60,6 +60,7 @@ const NAV = [
   { to: "/review", label: "Review", icon: BookmarkCheck, hint: "Problems you bookmarked for a second look — sorted by day and section." },
   { to: "/backlog", label: "Backlog", icon: CalendarDays, hint: "Past days you haven't fully completed. Insert a revision day to catch up." },
   { to: "/contests", label: "Contests", icon: Trophy, hint: "Live, upcoming & missed CP contests from LeetCode, Codeforces, CodeChef, AtCoder, HackerRank." },
+  { to: "/profile", label: "Developer Profile", icon: UserCircle2, hint: "Edit your avatar, banner, display name, bio, and coding platform handles." },
   { to: "/settings", label: "Settings", icon: Settings, hint: "Adjust daily pace, shift schedule, pause plan, change password or theme." },
 ] as const;
 
@@ -118,20 +119,18 @@ function DesktopSidebar({
       <div className="flex flex-col flex-1 bg-card/95 backdrop-blur border-r border-border rounded-r-2xl overflow-hidden shadow-md h-full">
 
         {/* Brand */}
-        <Link href="/today" className="flex items-center gap-3 border-b border-border px-4 py-4 shrink-0 justify-center md:justify-start">
-          {collapsed ? (
-            <div className="font-display font-black tracking-tighter text-[18px] leading-none flex items-baseline select-none">
-              <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">D</span>
-              <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm">⁴</span>
-            </div>
-          ) : (
-            <div className="flex flex-col">
-              <div className="font-display font-black tracking-tighter text-[24px] leading-none flex items-baseline select-none">
+        <Link href="/today" className="flex items-center gap-2.5 border-b border-border px-4 py-4 shrink-0 justify-center md:justify-start">
+          <div className="size-7 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+            <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+          </div>
+          {!collapsed && (
+            <div className="flex flex-col min-w-0">
+              <div className="font-display font-black tracking-tighter text-[22px] leading-none flex items-baseline select-none">
                 <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-md">DSA</span>
                 <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-md ml-[1px]">⁴⁰⁴</span>
               </div>
               <div className="font-mono text-[9px] font-bold tracking-tight text-muted-foreground leading-tight mt-1 truncate max-w-[160px]">
-                404 Distractions. 1 Goal: DSA. 🔥
+                Find. Solve. Master. 🔥
               </div>
             </div>
           )}
@@ -139,7 +138,11 @@ function DesktopSidebar({
 
         {/* User card */}
         <div className="border-b border-border px-3 py-3 shrink-0">
-          <div className="flex items-center gap-2.5">
+          <Link
+            href="/profile"
+            title="View your profile"
+            className="flex items-center gap-2.5 rounded-xl -mx-1 px-1 py-1 transition-colors hover:bg-secondary"
+          >
             <div className="size-9 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center overflow-hidden shrink-0">
               {photoURL
                 ? <img src={photoURL} alt="avatar" className="size-full object-cover" />
@@ -152,7 +155,7 @@ function DesktopSidebar({
                 <p className="text-[10px] text-muted-foreground truncate">{email}</p>
               </div>
             )}
-          </div>
+          </Link>
           {!collapsed && (
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               {streak > 0 && (
@@ -223,8 +226,8 @@ function DesktopSidebar({
             <DropdownMenuContent side="right" align="end" className="w-56">
               <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-              <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Dashboard</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={onSignOut} className="text-destructive focus:text-destructive">
@@ -287,7 +290,12 @@ function MobileDrawer({
             className="absolute top-4 right-4 rounded-full p-1.5 text-muted-foreground hover:bg-secondary transition-colors">
             <X className="size-4" />
           </button>
-          <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            onClick={onClose}
+            title="View your profile"
+            className="flex items-center gap-3 rounded-xl -mx-1 px-1 py-1 transition-colors hover:bg-white/5"
+          >
             <div className="size-12 rounded-full bg-primary/20 border-2 border-primary/30 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
               {photoURL ? <img src={photoURL} alt="avatar" className="size-full object-cover" /> : <span className="text-lg font-bold text-primary">{initials}</span>}
             </div>
@@ -295,7 +303,7 @@ function MobileDrawer({
               <p className="font-semibold text-sm truncate">{displayName}</p>
               <p className="text-[11px] text-muted-foreground truncate">{email}</p>
             </div>
-          </div>
+          </Link>
           <div className="mt-3.5 flex flex-wrap items-center gap-2">
             {streak > 0 && (
               <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
@@ -359,7 +367,7 @@ function MobileDrawer({
             <DropdownMenuContent side="right" align="end" className="w-56">
               <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
+              <DropdownMenuItem asChild><Link href="/progress" onClick={onClose}><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/profile" onClick={onClose}><UserCircle2 className="mr-2 size-4" /> Profile</Link></DropdownMenuItem>
               <DropdownMenuItem asChild><Link href="/settings" onClick={onClose}><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
               <DropdownMenuSeparator />
@@ -485,7 +493,10 @@ export function AppShell({ email, children }: { email: string; children: React.R
                 <activeNav.icon className="size-3.5 shrink-0" />
                 <span>{activeNav.label}</span>
               </button>
-              <Link href="/today" className="ml-2 flex items-center gap-1.5">
+              <Link href="/today" className="ml-2 flex items-center gap-2">
+                <div className="size-6 rounded-full overflow-hidden border border-border/80 shadow-sm ring-1 ring-primary/20 bg-background shrink-0">
+                  <img src="/logo.jpg" alt="DSA404 Logo" className="size-full object-cover" />
+                </div>
                 <div className="font-display font-black tracking-tighter text-[20px] leading-none flex items-baseline select-none">
                   <span className="bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent drop-shadow-sm">DSA</span>
                   <span className="bg-gradient-to-br from-primary to-orange-500 bg-clip-text text-transparent drop-shadow-sm ml-[1px]">⁴⁰⁴</span>
@@ -505,8 +516,8 @@ export function AppShell({ email, children }: { email: string; children: React.R
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Dashboard</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                     <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => openPanel()}><Palette className="mr-2 size-4" /> Customize Color & Font</DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -569,8 +580,8 @@ export function AppShell({ email, children }: { email: string; children: React.R
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">{email}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link href="/"><Home className="mr-2 size-4" /> Home</Link></DropdownMenuItem>
-                  <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Dashboard</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/progress"><Flame className="mr-2 size-4 text-orange-500" /> Progress</Link></DropdownMenuItem>
+                  <DropdownMenuItem asChild><Link href="/today"><Sparkles className="mr-2 size-4" /> Today's Workspace</Link></DropdownMenuItem>
                   <DropdownMenuItem asChild><Link href="/settings"><Settings className="mr-2 size-4" /> Settings</Link></DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onSelect={() => void signOut()} className="text-destructive focus:text-destructive">Log out</DropdownMenuItem>
@@ -603,7 +614,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
               <li>
                 <Link href="/today" className={cn("flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-medium transition-colors", pathname === "/today" ? "text-primary font-bold" : "text-muted-foreground")}>
                   <Sparkles className="size-4.5" />
-                  <span>Dashboard</span>
+                  <span>Today's Workspace</span>
                 </Link>
               </li>
 

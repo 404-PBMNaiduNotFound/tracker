@@ -73,11 +73,11 @@ const FEATURE_ITEMS: DeepNavItem[] = [
     keywords: ["solved", "heatmap", "activity", "calendar", "green days", "solutions"],
   },
   {
-    label: "Dashboard & Today's Topic",
+    label: "Today's Workspace",
     href: "/today?tab=today",
     icon: Sparkles,
-    desc: "Daily topic, core problems, motivational quotes, and schedule controls",
-    keywords: ["dashboard", "today", "topic", "quote", "streak", "postpone", "merge"],
+    desc: "Daily topic, core problems, streak, and schedule controls",
+    keywords: ["workspace", "today", "topic", "streak", "postpone", "merge"],
   },
   {
     label: "All Problems List",

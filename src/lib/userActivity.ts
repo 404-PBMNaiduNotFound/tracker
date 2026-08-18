@@ -2,17 +2,22 @@
 import { todayIso } from "./plan";
 import type { Day } from "./types";
 
-const LAST_ACTIVE_KEY = "dsa_last_active_date";
+function getLastActiveKey(uid?: string) {
+  return uid ? `dsa_last_active_date_${uid}` : "dsa_last_active_date";
+}
 
 /** Record today as active in localStorage */
-export function recordActivity(): void {
+export function recordActivity(uid?: string): void {
   if (typeof window === "undefined") return;
   const today = todayIso();
-  localStorage.setItem(LAST_ACTIVE_KEY, today);
+  localStorage.setItem(getLastActiveKey(uid), today);
 }
 
 /** Get the days of inactivity since last recorded visit or last solved problem */
-export function getInactivityDays(days: Day[]): {
+export function getInactivityDays(
+  days: Day[],
+  uid?: string
+): {
   daysInactive: number;
   isLongAbsence: boolean;
   lastActiveDateStr: string | null;
@@ -22,7 +27,7 @@ export function getInactivityDays(days: Day[]): {
 
   let lastActiveDateStr: string | null = null;
   if (typeof window !== "undefined") {
-    lastActiveDateStr = localStorage.getItem(LAST_ACTIVE_KEY);
+    lastActiveDateStr = localStorage.getItem(getLastActiveKey(uid));
   }
 
   // Also check days array for latest solved problem date

@@ -41,7 +41,7 @@ function TopicsPage() {
 
   const sections = useMemo(() => {
     const map = new Map<string, Day[]>();
-    days.forEach((d) => map.set(d.section, [...(map.get(d.section) ?? []), d]));
+    days.filter((d) => !d.isRevisionDay).forEach((d) => map.set(d.section, [...(map.get(d.section) ?? []), d]));
     return [...map.entries()].map(([section, allDays]) => {
       const active = allDays.filter((d) => !d.skipped);
       const done = active.reduce((a, d) => a + dayProgress(d).done, 0);

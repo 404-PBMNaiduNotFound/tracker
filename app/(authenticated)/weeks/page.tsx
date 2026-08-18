@@ -30,7 +30,7 @@ function groupIntoWeeks(days: Day[]): Day[][] {
     }
     const weekIndex = Math.floor(
       (new Date(day.date).getTime() - new Date(currentWeekStart).getTime()) /
-        (7 * 24 * 60 * 60 * 1000),
+      (7 * 24 * 60 * 60 * 1000),
     );
     if (weekIndex > 0 && currentWeek.length > 0) {
       result.push(currentWeek);

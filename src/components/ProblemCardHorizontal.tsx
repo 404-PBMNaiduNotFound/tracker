@@ -54,7 +54,7 @@ function googleSearchUrl(problemName: string) {
 }
 
 function youtubeSearchUrl(problemName: string) {
-  const query = `${problemName} DSA solution intuition walkthrough code`;
+  const query = `${problemName} solution intuition explained NeetCode OR Striver`;
   return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
